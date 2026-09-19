@@ -1,0 +1,607 @@
+#!/usr/bin/env python3
+"""
+Threat-intel icon library generator. SINGLE SOURCE OF TRUTH for the pack.
+Authors a coherent set of 24x24 line icons: thin stroke, round joins,
+single-weight, currentColor so they theme to any canvas/HTML accent.
+
+  python3 make_icons.py [OUT]            one SVG per icon + manifest.json + categories.json
+  python3 make_icons.py [OUT] --js F     also write the icons.js bundle (window.ICONS + helpers)
+  python3 make_icons.py [OUT] --contact  also write contact_dark.html / contact_light.html in OUT
+
+Never hand-write an SVG into the icons folder. Add an entry here and rerun,
+or the manifest, icons.js and the published pack drift apart.
+"""
+import json, os, sys, argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument("out", nargs="?", default="icons")
+ap.add_argument("--js")
+ap.add_argument("--contact", action="store_true")
+A = ap.parse_args()
+OUT = A.out
+os.makedirs(OUT, exist_ok=True)
+
+# Each entry: name -> inner markup on a 0 0 24 24 grid.
+# The wrapper supplies: fill=none, stroke=currentColor, stroke-width=1.7,
+# round caps/joins. Filled accents opt in with fill="currentColor" stroke="none".
+# No background knockouts and no baked colours: composites are drawn with real gaps.
+class _Icons(dict):
+    cat = "misc"; cats = {}
+    def __setitem__(self, k, v):
+        assert k not in self, f"duplicate icon {k}"
+        super().__setitem__(k, v); self.cats[k] = self.cat
+I = _Icons()
+
+# ---- execution / shells -------------------------------------------------
+I.cat = "execution"
+I["run-dialog"] = '''
+<rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+<path d="M2.5 8.5h19"/>
+<circle cx="5.4" cy="6.5" r=".65" fill="currentColor" stroke="none"/>
+<rect x="5" y="11.5" width="14" height="4.5" rx="1"/>
+<path d="M7.3 13.8l1.7 1.1-1.7 1.1"/>'''
+
+I["powershell"] = '''
+<rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+<path d="M2.5 8h19"/>
+<path d="M6 11.5l3.2 2.6L6 16.7"/>
+<path d="M11.5 16.8h5"/>'''
+
+I["cmd"] = '''
+<rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+<path d="M2.5 8h19"/>
+<path d="M6 11.6l2.7 2.2L6 16"/>
+<path d="M10.5 16.2h6.5"/>'''
+
+I["terminal"] = '''
+<rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+<path d="M6.5 10.2l3 2.4-3 2.4"/>
+<path d="M12 15h5.5"/>'''
+
+I["code"] = '''
+<path d="M8.5 8.5L4 12l4.5 3.5"/>
+<path d="M15.5 8.5L20 12l-4.5 3.5"/>
+<path d="M13.6 5.5l-3.2 13"/>'''
+
+I["compiler"] = '''
+<path d="M10.6 20.5H5.5v-17h8l4 4v3.2"/>
+<path d="M13.5 3.5v4h4"/>
+<path d="M8.9 10.3l-1.7 1.5 1.7 1.5M11.4 10.3l1.7 1.5-1.7 1.5"/>
+<circle cx="17.1" cy="17.1" r="2.5"/>
+<path d="M19.80 17.10L21.00 17.10M19.01 19.01L19.86 19.86M17.10 19.80L17.10 21.00M15.19 19.01L14.34 19.86M14.40 17.10L13.20 17.10M15.19 15.19L14.34 14.34M17.10 14.40L17.10 13.20M19.01 15.19L19.86 14.34" stroke-width="2"/>'''
+
+I["dll"] = '''
+<rect x="4.5" y="6.5" width="15" height="11" rx="1.5"/>
+<path d="M8 6.5V4.5M12 6.5V4.5M16 6.5V4.5M8 19.5v-2M12 19.5v-2M16 19.5v-2M4.5 9.5h-2M4.5 14.5h-2M19.5 9.5h2M19.5 14.5h2"/>
+<path d="M9 12.2l1.6 1.3L9 14.8" />
+<path d="M12.6 15h2.6"/>'''
+
+I["script-file"] = '''
+<path d="M6 3.5h8l4 4v13H6z"/>
+<path d="M14 3.5v4h4"/>
+<path d="M10.2 11.6L8.4 13l1.8 1.4"/>
+<path d="M12.8 11.6L14.6 13l-1.8 1.4"/>'''
+
+I["encoded-file"] = '''
+<path d="M6 3.5h8l4 4v13H6z"/>
+<path d="M14 3.5v4h4"/>
+<path d="M8.6 11.5v3M11.2 11.5v3M13.8 11.5v3M16 11.5v3" stroke-width="1.4"/>
+<circle cx="8.6" cy="16.7" r=".5" fill="currentColor" stroke="none"/>
+<circle cx="13.8" cy="16.7" r=".5" fill="currentColor" stroke="none"/>'''
+
+# ---- network / c2 -------------------------------------------------------
+I.cat = "network-c2"
+I["globe"] = '''
+<circle cx="12" cy="12" r="8.5"/>
+<path d="M3.5 12h17"/>
+<path d="M12 3.5c2.6 2.3 4 5.3 4 8.5s-1.4 6.2-4 8.5c-2.6-2.3-4-5.3-4-8.5s1.4-6.2 4-8.5z"/>'''
+
+I["dns"] = '''
+<circle cx="11" cy="11" r="7.2"/>
+<path d="M3.8 11h14.4"/>
+<path d="M11 3.8c2.2 2 3.4 4.5 3.4 7.2S13.2 16.2 11 18.2c-2.2-2-3.4-4.5-3.4-7.2S8.8 5.8 11 3.8z"/>
+<path d="M16.5 16.5l4 4"/>'''
+
+I["telegram"] = '''
+<path d="M21 4.5L2.8 11.4c-.7.3-.7 1.1 0 1.3l4.6 1.5 1.8 5.1c.2.5.5.5.9.2l2.6-2.4 4.6 3.4c.5.3 1 .1 1.1-.5L21.9 5.2c.1-.6-.4-1-.9-.7z"/>
+<path d="M7.4 14.2L18 6.6l-8 8-.1 3.4"/>'''
+
+I["download-cloud"] = '''
+<path d="M7 15.5A4.2 4.2 0 016.6 7.1a5.2 5.2 0 019.9 1.2 3.6 3.6 0 01-.4 7.2"/>
+<path d="M12 11v6.5"/>
+<path d="M9.4 15l2.6 2.6 2.6-2.6"/>'''
+
+I["beacon"] = '''
+<circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/>
+<path d="M8.5 8.5a5 5 0 000 7M15.5 8.5a5 5 0 010 7"/>
+<path d="M6 6a8.5 8.5 0 000 12M18 6a8.5 8.5 0 010 12"/>'''
+
+I["link"] = '''
+<path d="M9.5 14.5l5-5"/>
+<path d="M8 11L6.2 12.8a3.4 3.4 0 004.8 4.8L12.8 16"/>
+<path d="M16 13l1.8-1.8a3.4 3.4 0 00-4.8-4.8L11.2 8"/>'''
+
+I["exfil"] = '''
+<path d="M13 4.5H5.5A1.5 1.5 0 004 6v12a1.5 1.5 0 001.5 1.5H13"/>
+<path d="M9.5 12h11"/>
+<path d="M17.3 8.3l4 3.7-4 3.7"/>'''
+
+# ---- payload / evasion --------------------------------------------------
+I.cat = "payload-evasion"
+I["image-file"] = '''
+<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>
+<circle cx="8.4" cy="9.2" r="1.5"/>
+<path d="M4 16.5l4.5-4 3.5 3 3-2.5 5.5 5"/>'''
+
+I["stego"] = '''
+<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>
+<circle cx="8" cy="9" r="1.3"/>
+<path d="M4 16l4-3.6 2.7 2.3"/>
+<rect x="12.5" y="12.5" width="7" height="5.5" rx="1"/>
+<path d="M14 12.5v-1.1a2 2 0 014 0v1.1"/>
+<circle cx="16" cy="15.2" r=".8" fill="currentColor" stroke="none"/>'''
+
+I["skull"] = '''
+<path d="M12 3.2c-4.4 0-7.5 3-7.5 7 0 2.3 1 4 2.4 5.1.5.4.8 1 .8 1.6v.8c0 .8.6 1.4 1.4 1.4h5.8c.8 0 1.4-.6 1.4-1.4v-.8c0-.6.3-1.2.8-1.6 1.4-1.1 2.4-2.8 2.4-5.1 0-4-3.1-7-7.5-7z"/>
+<circle cx="8.8" cy="11" r="1.8" fill="currentColor" stroke="none"/>
+<circle cx="15.2" cy="11" r="1.8" fill="currentColor" stroke="none"/>
+<path d="M12 13.5l-.9 2.2h1.8z" fill="currentColor" stroke="none"/>
+<path d="M9.5 19.5v1.3M12 19.5v1.3M14.5 19.5v1.3"/>'''
+
+I["bug"] = '''
+<rect x="7.5" y="8" width="9" height="10" rx="4.5"/>
+<path d="M9 5l1.8 2.2M15 5l-1.8 2.2"/>
+<path d="M7.5 12H4M16.5 12H20M7.7 8.6L5 6.8M16.3 8.6L19 6.8M7.7 15.6L5 17.5M16.3 15.6L19 17.5"/>
+<path d="M12 8.2v9.4"/>'''
+
+I["shield"] = '''
+<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.4-4-1.5-7-4.8-7-9.4V5.6z"/>'''
+
+I["shield-check"] = '''
+<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.4-4-1.5-7-4.8-7-9.4V5.6z"/>
+<path d="M8.8 11.8l2.2 2.2 4-4.4"/>'''
+
+I["shield-alert"] = '''
+<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.4-4-1.5-7-4.8-7-9.4V5.6z"/>
+<path d="M12 8v4.2"/>
+<circle cx="12" cy="15.4" r=".7" fill="currentColor" stroke="none"/>'''
+
+I["lock"] = '''
+<rect x="5.5" y="10.5" width="13" height="9" rx="2"/>
+<path d="M8 10.5V8a4 4 0 018 0v2.5"/>
+<circle cx="12" cy="14.5" r="1.2" fill="currentColor" stroke="none"/>
+<path d="M12 15.5v2"/>'''
+
+I["key"] = '''
+<circle cx="8" cy="8" r="4"/>
+<path d="M10.9 10.9l8 8"/>
+<path d="M16 16l2-2M18.5 18.5l1.6-1.6"/>'''
+
+I["fingerprint"] = '''
+<path d="M4.8 15.6V12a7.2 7.2 0 0111.3-5.9"/>
+<path d="M18.4 8.6c.5 1 .8 2.2.8 3.4v2.6c0 1.4-.2 2.7-.5 4"/>
+<path d="M7.7 18.8c.2-1.3.3-2.7.3-4.2V12a4 4 0 018 0v2.8c0 1.8-.3 3.5-.8 5.1"/>
+<path d="M12 11.6v3c0 2-.4 4-1.1 5.8"/>'''
+
+I["sandbox"] = '''
+<rect x="3" y="4.5" width="18" height="12" rx="1.7"/>
+<path d="M9 20h6M12 16.5V20"/>
+<rect x="8.5" y="8" width="7" height="5" rx="1"/>
+<path d="M8.5 10.5h7M12 8v5"/>'''
+
+I["eye-off"] = '''
+<path d="M4 12s3-6 8-6c1.4 0 2.6.4 3.7 1M20 12s-3 6-8 6c-1.4 0-2.7-.4-3.8-1"/>
+<path d="M9.9 9.9a3 3 0 004.2 4.2"/>
+<path d="M4 4l16 16"/>'''
+
+I["tray-icon"] = '''
+<rect x="3" y="15.3" width="18" height="4.7" rx="1.2"/>
+<circle cx="17.5" cy="17.6" r=".7" fill="currentColor" stroke="none"/>
+<path d="M8 15v-1M13 15v-1"/>
+<path d="M12 3.4l4.4 1.6v3.2c0 2.8-1.8 4.9-4.4 5.9-2.6-1-4.4-3.1-4.4-5.9V5z"/>
+<path d="M10.2 8.6l1.3 1.3 2.3-2.5"/>'''
+
+I["xor"] = '''
+<circle cx="9" cy="12" r="5.2"/>
+<circle cx="15" cy="12" r="5.2"/>'''
+
+# ---- persistence / host -------------------------------------------------
+I.cat = "host-persistence"
+I["clock-task"] = '''
+<circle cx="12" cy="12" r="8.5"/>
+<path d="M12 7v5.2l3.4 2"/>'''
+
+I["registry"] = '''
+<path d="M5 4.5h9l2 2v13H5z"/>
+<path d="M7.5 8.5h6M7.5 11.5h6M7.5 14.5h3"/>
+<circle cx="16.5" cy="15" r="2.4"/>
+<path d="M18.3 16.8l2.2 2.2M18.9 16.2l1 1" />'''
+
+I["shortcut"] = '''
+<path d="M6 3.5h8l4 4v13H6z"/>
+<path d="M14 3.5v4h4"/>
+<path d="M9 17c0-3 1.6-4.6 4.6-4.6"/>
+<path d="M11.6 10.4l2.6 2-2.6 2"/>'''
+
+I["folder"] = '''
+<path d="M3 6.5a1.5 1.5 0 011.5-1.5h4l2 2.2h8A1.5 1.5 0 0120 8.7v9.3a1.5 1.5 0 01-1.5 1.5h-14A1.5 1.5 0 013 18z"/>'''
+
+I["remote-desktop"] = '''
+<rect x="2.5" y="4.5" width="19" height="12.5" rx="1.8"/>
+<path d="M9 21h6M12 17v4"/>
+<path d="M7.5 9.5h5M7.5 12.3h3"/>
+<path d="M13.5 10.5l4.5 1.8-2 .8-.8 2z"/>'''
+
+I["gear"] = '''
+<circle cx="12" cy="12" r="5.2"/>
+<circle cx="12" cy="12" r="1.6"/>
+<path d="M17.60 12.00L19.70 12.00M15.96 15.96L17.44 17.44M12.00 17.60L12.00 19.70M8.04 15.96L6.56 17.44M6.40 12.00L4.30 12.00M8.04 8.04L6.56 6.56M12.00 6.40L12.00 4.30M15.96 8.04L17.44 6.56" stroke-width="3.2"/>'''
+
+# ---- actors / infra -----------------------------------------------------
+I.cat = "actors-infra"
+I["hacker"] = '''
+<path d="M5 13a7 7 0 0114 0"/>
+<path d="M5 13v3.5a2 2 0 002 2h10a2 2 0 002-2V13"/>
+<path d="M8.5 13.5h2.2M13.3 13.5h2.2" stroke-width="2"/>
+<path d="M5.6 12.3C6.5 8.3 8.9 6 12 6s5.5 2.3 6.4 6.3"/>'''
+
+I["laptop"] = '''
+<rect x="5" y="5.5" width="14" height="9.5" rx="1.4"/>
+<path d="M2.5 18.5h19"/>
+<path d="M9.5 15.2l-.6 1.8h6.2l-.6-1.8"/>'''
+
+I["laptop-skull"] = '''
+<rect x="5" y="5.5" width="14" height="9.5" rx="1.4"/>
+<path d="M2.5 18.5h19"/>
+<path d="M9.5 15.2l-.6 1.8h6.2l-.6-1.8"/>
+<path d="M12 7.4c-2 0-3.4 1.4-3.4 3.2 0 1 .5 1.9 1.2 2.4v.9c0 .3.3.6.6.6h3.2c.3 0 .6-.3.6-.6v-.9c.7-.5 1.2-1.4 1.2-2.4 0-1.8-1.4-3.2-3.4-3.2z"/>
+<circle cx="10.7" cy="10.6" r=".8" fill="currentColor" stroke="none"/>
+<circle cx="13.3" cy="10.6" r=".8" fill="currentColor" stroke="none"/>'''
+
+I["server"] = '''
+<rect x="4" y="4" width="16" height="7" rx="1.5"/>
+<rect x="4" y="13" width="16" height="7" rx="1.5"/>
+<circle cx="7.5" cy="7.5" r=".8" fill="currentColor" stroke="none"/>
+<circle cx="7.5" cy="16.5" r=".8" fill="currentColor" stroke="none"/>
+<path d="M11 7.5h6M11 16.5h6"/>'''
+
+I["user"] = '''
+<circle cx="12" cy="8" r="3.6"/>
+<path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/>'''
+
+I["warning"] = '''
+<path d="M12 4.2L21 19.5H3z"/>
+<path d="M12 10v4"/>
+<circle cx="12" cy="16.6" r=".8" fill="currentColor" stroke="none"/>'''
+
+I["radiation"] = '''
+<circle cx="12" cy="12" r="8.5"/>
+<circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/>
+<path d="M12 12l3.9-6.7a8.5 8.5 0 013.6 6.7z" fill="currentColor" stroke="none"/>
+<path d="M12 12l-7.5 0a8.5 8.5 0 013.6-6.7z" fill="currentColor" stroke="none"/>
+<path d="M12 12l3.9 6.7a8.5 8.5 0 01-7.8 0z" fill="currentColor" stroke="none"/>'''
+
+I["biohazard"] = '''
+<circle cx="12" cy="13.5" r="2.1"/>
+<path d="M14.46 4.05A4.4 4.4 0 0 1 15.32 10.59M9.54 4.05A4.4 4.4 0 0 0 8.68 10.59M18.95 20.35A4.4 4.4 0 0 1 12.86 17.83M21.41 16.09A4.4 4.4 0 0 0 16.18 12.08M2.59 16.09A4.4 4.4 0 0 1 7.82 12.08M5.05 20.35A4.4 4.4 0 0 0 11.14 17.83"/>'''
+
+I["magnifier"] = '''
+<circle cx="10.5" cy="10.5" r="6"/>
+<path d="M14.9 14.9L20 20"/>'''
+
+I["eye"] = '''
+<path d="M3.5 12S7 5.5 12 5.5 20.5 12 20.5 12 17 18.5 12 18.5 3.5 12 3.5 12z"/>
+<circle cx="12" cy="12" r="2.6"/>'''
+
+# ---- hand-authored earlier, folded back into the generator ------------------
+I.cat = "payload-evasion"
+I["archive"] = '''
+<rect x="4.5" y="3.5" width="15" height="17" rx="2"/>
+<path d="M12 3.5v13" stroke-dasharray="1.7 2.1"/>
+<rect x="10.5" y="9.4" width="3" height="4" rx="0.8"/>
+<path d="M12 16.6v1.6"/>'''
+
+I.cat = "network-c2"
+I["finger-net"] = '''
+<path d="M9 15.4V4.4a1.6 1.6 0 013.2 0v6.4"/>
+<path d="M12.2 10.4a1.5 1.5 0 013 0v1.4"/>
+<path d="M15.2 11.2a1.5 1.5 0 013 0v1.4"/>
+<path d="M18.2 12.2a1.4 1.4 0 012.8 0v3a6 6 0 01-6 6h-2.2c-1.8 0-3.1-.6-4.2-1.8l-4-4.3a1.5 1.5 0 012.2-2.1L9 15.4"/>
+<path d="M15 4a3.8 3.8 0 012.6 2.6M16 1.8a6.2 6.2 0 013.8 3.8"/>'''
+
+I.cat = "payload-evasion"
+I["inject"] = '''
+<path d="M18 2l4 4"/>
+<path d="M17 7l3-3"/>
+<path d="M19 9L8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5z"/>
+<path d="M9 11l4 4"/>
+<path d="M5 19l-3 3"/>
+<path d="M14 4l6 6"/>'''
+
+I.cat = "host-persistence"
+I["keylogger"] = '''
+<rect x="2.5" y="8.7" width="19" height="10.3" rx="2"/>
+<path d="M6 11.7h.01M9 11.7h.01M12 11.7h.01M15 11.7h.01M18 11.7h.01" stroke-width="2.1"/>
+<path d="M6 14.7h.01M18 14.7h.01" stroke-width="2.1"/>
+<path d="M8.8 15.6h6.4"/>
+<path d="M12 8.5V3.4"/>
+<path d="M9.7 5.4L12 3.1l2.3 2.3"/>'''
+
+# ---- delivery / social --------------------------------------------------
+I.cat = "delivery-social"
+I["mail"] = '''
+<rect x="3.3" y="5" width="17.4" height="14" rx="2"/>
+<path d="M4.2 6.6l7.8 5.8 7.8-5.8"/>'''
+
+I["phone"] = '''
+<path d="M15.8 20.5C8.2 20.5 3.5 15.8 3.5 8.2c0-1.1.9-2 2-2h2.2c.5 0 .95.35 1.05.85l.85 2.9c.1.42-.03.86-.34 1.15l-1.35 1.3c1.1 2.05 2.75 3.7 4.8 4.8l1.3-1.35c.29-.31.73-.44 1.15-.34l2.9.85c.5.1.85.55.85 1.05v2.2c0 1.1-.9 2-2 2z"/>'''
+
+I["phish-hook"] = '''
+<circle cx="14.5" cy="4.6" r="1.7"/>
+<path d="M14.5 6.3v9.2a4.7 4.7 0 01-9.4 0v-3.3"/>
+<path d="M5.1 12.2l2.4 2.5"/>'''
+
+I["qr-code"] = '''
+<rect x="3.5" y="3.5" width="6.8" height="6.8" rx="1.2"/>
+<rect x="13.7" y="3.5" width="6.8" height="6.8" rx="1.2"/>
+<rect x="3.5" y="13.7" width="6.8" height="6.8" rx="1.2"/>
+<circle cx="6.9" cy="6.9" r="1" fill="currentColor" stroke="none"/>
+<circle cx="17.1" cy="6.9" r="1" fill="currentColor" stroke="none"/>
+<circle cx="6.9" cy="17.1" r="1" fill="currentColor" stroke="none"/>
+<path d="M13.9 13.9h2.7v2.7M20.3 13.9v2.5M13.9 20.3v-1.4M17 20.3h3.3v-1.6"/>'''
+
+I["browser"] = '''
+<rect x="2.5" y="4" width="19" height="16" rx="2"/>
+<path d="M2.5 8.6h19"/>
+<circle cx="5.3" cy="6.3" r=".7" fill="currentColor" stroke="none"/>
+<circle cx="7.6" cy="6.3" r=".7" fill="currentColor" stroke="none"/>
+<path d="M11 6.3h7.5"/>
+<path d="M6 12.4h12M6 16h7.5"/>'''
+
+I["mailbox-rule"] = '''
+<path d="M11.2 16H4.3a1.8 1.8 0 01-1.8-1.8V5.8A1.8 1.8 0 014.3 4h13.4a1.8 1.8 0 011.8 1.8v5"/>
+<path d="M3.4 5.5L11 10.9l7.6-5.4"/>
+<path d="M13.4 14.2h8.2l-4.1 4.7z"/>
+<path d="M17.5 18.9v2.4"/>'''
+
+# ---- cloud / devops -----------------------------------------------------
+I.cat = "cloud-devops"
+I["cloud"] = '''
+<path d="M7 18A4.4 4.4 0 016.6 9.2a5.5 5.5 0 0110.5 1.3 3.8 3.8 0 01-.5 7.5z"/>'''
+
+I["container"] = '''
+<rect x="2.8" y="7" width="18.4" height="11" rx="1.6"/>
+<path d="M6.6 10v5M10.2 10v5M13.8 10v5M17.4 10v5"/>'''
+
+I["k8s"] = '''
+<path d="M12 3.3l6.96 3.35 1.72 7.53-4.82 6.04H8.14l-4.82-6.04 1.72-7.53z"/>
+<circle cx="12" cy="12.2" r="3.1"/>
+<path d="M12 9.1V6M14.42 10.27l2.43-1.94M15.02 12.89l3.02.69M13.35 14.99l1.34 2.8M10.65 14.99l-1.34 2.8M8.98 12.89l-3.02.69M9.58 10.27L7.15 8.33"/>'''
+
+I["ci-runner"] = '''
+<path d="M3.5 12a8.5 8.5 0 0114.6-5.9l2.4 2.4"/>
+<path d="M20.5 4v4.5H16"/>
+<path d="M20.5 12a8.5 8.5 0 01-14.6 5.9l-2.4-2.4"/>
+<path d="M3.5 20v-4.5H8"/>
+<path d="M10.2 9.2v5.6l4.6-2.8z"/>'''
+
+I["package"] = '''
+<path d="M12 3.2l7.8 4.4v8.8L12 20.8l-7.8-4.4V7.6z"/>
+<path d="M4.4 7.7L12 12l7.6-4.3"/>
+<path d="M12 12v8.6"/>
+<path d="M8 5.5l7.8 4.4"/>'''
+
+I["git-branch"] = '''
+<circle cx="7" cy="6" r="2.3"/>
+<circle cx="7" cy="18" r="2.3"/>
+<circle cx="17" cy="7" r="2.3"/>
+<path d="M7 8.3v7.4"/>
+<path d="M17 9.3a8.7 8.7 0 01-7.7 8.7"/>'''
+
+I["database"] = '''
+<ellipse cx="12" cy="6.2" rx="7" ry="2.9"/>
+<path d="M5 6.2v11.6c0 1.6 3.1 2.9 7 2.9s7-1.3 7-2.9V6.2"/>
+<path d="M5 12c0 1.6 3.1 2.9 7 2.9s7-1.3 7-2.9"/>'''
+
+I["bucket"] = '''
+<ellipse cx="12" cy="6.4" rx="7.6" ry="2.7"/>
+<path d="M4.4 6.4l1.8 11.8c.2 1.4 2.7 2.4 5.8 2.4s5.6-1 5.8-2.4l1.8-11.8"/>
+<path d="M5.3 12.2c.9 1.1 3.5 1.9 6.7 1.9s5.8-.8 6.7-1.9"/>'''
+
+I["function"] = '''
+<path d="M7.8 4.2C5.9 6.3 4.8 9 4.8 12s1.1 5.7 3 7.8"/>
+<path d="M16.2 4.2c1.9 2.1 3 4.8 3 7.8s-1.1 5.7-3 7.8"/>
+<path d="M13 7l-3.2 5.5h4.4L11 18"/>'''
+
+I["hypervisor"] = '''
+<rect x="3.2" y="3.4" width="7.6" height="7.2" rx="1.4" stroke-dasharray="2.2 2.3"/>
+<rect x="13.2" y="3.4" width="7.6" height="7.2" rx="1.4" stroke-dasharray="2.2 2.3"/>
+<path d="M7 10.6v3.6M17 10.6v3.6"/>
+<rect x="3" y="14.2" width="18" height="6.4" rx="1.5"/>
+<circle cx="6.4" cy="17.4" r=".85" fill="currentColor" stroke="none"/>
+<path d="M10 17.4h7.6"/>'''
+
+I["vm"] = '''
+<rect x="3" y="3.5" width="18" height="17" rx="2.5" stroke-dasharray="2.4 2.6"/>
+<rect x="7" y="7.3" width="10" height="6.6" rx="1.1"/>
+<path d="M12 13.9v2.7M9.4 16.8h5.2"/>'''
+
+I["edge-appliance"] = '''
+<rect x="2.5" y="10.5" width="19" height="7.5" rx="1.6"/>
+<circle cx="6" cy="14.25" r=".85" fill="currentColor" stroke="none"/>
+<circle cx="8.8" cy="14.25" r=".85" fill="currentColor" stroke="none"/>
+<path d="M12.5 14.25h5.8"/>
+<path d="M8.5 7.6V3.4M6.6 5.3l1.9-1.9 1.9 1.9"/>
+<path d="M15.5 3.4v4.2M13.6 5.7l1.9 1.9 1.9-1.9"/>
+<path d="M6 18v1.7M18 18v1.7"/>'''
+
+I["driver"] = '''
+<rect x="6" y="6" width="12" height="12" rx="1.8"/>
+<path d="M9 6V3.8M12 6V3.8M15 6V3.8M9 20.2V18M12 20.2V18M15 20.2V18M6 9H3.8M6 12H3.8M6 15H3.8M20.2 9H18M20.2 12H18M20.2 15H18"/>
+<circle cx="12" cy="12" r="2.7"/>
+<circle cx="12" cy="12" r=".9" fill="currentColor" stroke="none"/>'''
+
+# ---- identity / access --------------------------------------------------
+I.cat = "identity-access"
+I["idp"] = '''
+<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.4-4-1.5-7-4.8-7-9.4V5.6z"/>
+<circle cx="12" cy="9.3" r="2.1"/>
+<path d="M8.5 15.4c.5-1.8 1.8-2.8 3.5-2.8s3 1 3.5 2.8"/>'''
+
+I["token"] = '''
+<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/>
+<circle cx="12" cy="10.4" r="2"/>
+<path d="M12 12.4v3.6"/>'''
+
+I["mfa-push"] = '''
+<rect x="6.8" y="2.5" width="10.4" height="19" rx="2.3"/>
+<path d="M10.6 5.3h2.8"/>
+<path d="M9.4 12.6l1.9 1.9 3.4-3.8"/>'''
+
+I["password"] = '''
+<rect x="2.5" y="7.5" width="19" height="9" rx="2.2"/>
+<circle cx="6.9" cy="12" r="1" fill="currentColor" stroke="none"/>
+<circle cx="10.3" cy="12" r="1" fill="currentColor" stroke="none"/>
+<circle cx="13.7" cy="12" r="1" fill="currentColor" stroke="none"/>
+<circle cx="17.1" cy="12" r="1" fill="currentColor" stroke="none"/>'''
+
+I["cookie"] = '''
+<path d="M12 3a9 9 0 109 9 3.6 3.6 0 01-4.5-4.5A3.6 3.6 0 0112 3z"/>
+<circle cx="8.6" cy="9.6" r=".95" fill="currentColor" stroke="none"/>
+<circle cx="8.2" cy="14.8" r=".95" fill="currentColor" stroke="none"/>
+<circle cx="12.8" cy="12.2" r=".95" fill="currentColor" stroke="none"/>
+<circle cx="12.6" cy="17" r=".95" fill="currentColor" stroke="none"/>
+<circle cx="16.4" cy="14.6" r=".95" fill="currentColor" stroke="none"/>'''
+
+I["sign-in"] = '''
+<path d="M11 4.5h7.5A1.5 1.5 0 0120 6v12a1.5 1.5 0 01-1.5 1.5H11"/>
+<path d="M3 12h11"/>
+<path d="M10.3 8.3l4 3.7-4 3.7"/>'''
+
+I["service-account"] = '''
+<rect x="4.8" y="8" width="14.4" height="11" rx="2.6"/>
+<path d="M12 8V5.4"/>
+<circle cx="12" cy="4.2" r="1.2"/>
+<circle cx="9.2" cy="12.6" r="1.05" fill="currentColor" stroke="none"/>
+<circle cx="14.8" cy="12.6" r="1.05" fill="currentColor" stroke="none"/>
+<path d="M9.6 15.9h4.8"/>
+<path d="M2.6 12.4v2.8M21.4 12.4v2.8"/>'''
+
+I["admin"] = '''
+<circle cx="10" cy="7.6" r="3.4"/>
+<path d="M3.4 19.6c0-3.5 2.9-5.7 6.6-5.7.8 0 1.5.1 2.2.3"/>
+<path d="M17.4 12.4l3.6 1.3v2.8c0 2.3-1.5 4-3.6 4.8-2.1-.8-3.6-2.5-3.6-4.8v-2.8z"/>'''
+
+I["users"] = '''
+<circle cx="9" cy="8" r="3.4"/>
+<path d="M2.6 19.6c0-3.4 2.8-5.6 6.4-5.6s6.4 2.2 6.4 5.6"/>
+<path d="M15.6 4.9a3.4 3.4 0 010 6.2"/>
+<path d="M18 14.5c2.1.8 3.4 2.6 3.4 5.1"/>'''
+
+I["id-badge"] = '''
+<rect x="5.2" y="5.6" width="13.6" height="15" rx="2"/>
+<path d="M9.8 5.6V4.3a1 1 0 011-1h2.4a1 1 0 011 1v1.3"/>
+<circle cx="12" cy="11.2" r="2.1"/>
+<path d="M8.6 17.2c.5-1.8 1.7-2.7 3.4-2.7s2.9.9 3.4 2.7"/>'''
+
+I["certificate"] = '''
+<path d="M13.4 16.6H4.8A1.8 1.8 0 013 14.8V5.8A1.8 1.8 0 014.8 4h14.4A1.8 1.8 0 0121 5.8v9c0 .9-.6 1.6-1.5 1.8"/>
+<path d="M6.4 8h6.8M6.4 11.2h4.2"/>
+<circle cx="16.4" cy="12.2" r="2.5"/>
+<path d="M14.9 14.4l-.9 5.4 2.4-1.4 2.4 1.4-.9-5.4"/>'''
+
+I["vault"] = '''
+<rect x="3.5" y="4" width="17" height="15" rx="2"/>
+<circle cx="10.6" cy="11.5" r="3"/>
+<circle cx="10.6" cy="11.5" r=".9" fill="currentColor" stroke="none"/>
+<path d="M17 9v5"/>
+<path d="M7 19v1.7M17 19v1.7"/>'''
+
+I["device-enroll"] = '''
+<rect x="5" y="5.5" width="14" height="9.5" rx="1.4"/>
+<path d="M2.5 18.5h19"/>
+<path d="M9.5 15.2l-.6 1.8h6.2l-.6-1.8"/>
+<path d="M12 8v4.5M9.75 10.25h4.5"/>'''
+
+I["saas-app"] = '''
+<rect x="3" y="3.8" width="18" height="16.4" rx="2"/>
+<path d="M3 7.8h18"/>
+<circle cx="5.8" cy="5.8" r=".7" fill="currentColor" stroke="none"/>
+<path d="M9.3 17a2.3 2.3 0 01-.2-4.6 2.9 2.9 0 015.5.7 2 2 0 01-.3 3.9z"/>'''
+
+
+# Category overrides for icons whose original section predates the identity group.
+for _n in ("key", "lock", "fingerprint", "user"):
+    I.cats[_n] = "identity-access"
+
+# ---------------------------------------------------------------------------
+WRAP = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+        'width="24" height="24" fill="none" stroke="currentColor" '
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
+        '{inner}\n</svg>\n')
+
+manifest = []
+for name, inner in I.items():
+    svg = WRAP.format(inner=inner)
+    with open(os.path.join(OUT, name + ".svg"), "w") as f:
+        f.write(svg)
+    manifest.append(name)
+
+with open(os.path.join(OUT, "manifest.json"), "w") as f:
+    json.dump(sorted(manifest), f, indent=2)
+
+CAT_ORDER = ["delivery-social", "execution", "payload-evasion", "host-persistence",
+             "network-c2", "cloud-devops", "identity-access", "actors-infra"]
+CAT_LABEL = {"delivery-social": "Delivery and social", "execution": "Shells and execution",
+             "payload-evasion": "Payload and evasion", "host-persistence": "Host and persistence",
+             "network-c2": "Network and C2", "cloud-devops": "Cloud and DevOps",
+             "identity-access": "Identity and access", "actors-infra": "Actors and infrastructure"}
+cats = {c: sorted(n for n, k in I.cats.items() if k == c) for c in CAT_ORDER}
+assert sum(len(v) for v in cats.values()) == len(manifest), "icon with unknown category"
+with open(os.path.join(OUT, "categories.json"), "w") as f:
+    json.dump(cats, f, indent=2)
+
+if A.js:
+    JS_HELPERS = r"""window.icon=function(name,opt){opt=opt||{};var s=window.ICONS[name];if(!s){console.warn('no icon',name);return '';}
+var size=opt.size||24, sw=opt.stroke||1.7;
+s=s.replace('width="24"','width="'+size+'"').replace('height="24"','height="'+size+'"').replace('stroke-width="1.7"','stroke-width="'+sw+'"');
+if(opt.cls) s=s.replace('<svg ','<svg class="'+opt.cls+'" ');return s;};
+window.hydrate=function(){document.querySelectorAll('[data-ic]').forEach(function(e){
+ var sz=parseFloat(getComputedStyle(e).getPropertyValue('--s'))||24;
+ e.innerHTML=window.icon(e.getAttribute('data-ic'),{size:sz,stroke:e.getAttribute('data-sw')||1.7});});};
+"""
+    bundle = {n: WRAP.format(inner=I[n]).rstrip("\n") for n in sorted(I)}
+    with open(A.js, "w") as f:
+        f.write("window.ICONS=" + json.dumps(bundle) + ";\n" + JS_HELPERS)
+
+if A.contact:
+    THEMES = {
+      "dark":  dict(bg="#0e1213", tile="#161a1b", line="#242b2c", ink="#fbfaf4", soft="#aab0ab", faint="#6f7670",
+                    acc=["#e0913f", "#dd6a5f", "#48c6ac"], title="Threat-intel icon pack"),
+      "light": dict(bg="#f4ecd9", tile="#f8f2e3", line="#e4d9c0", ink="#3a3022", soft="#5a4e3b", faint="#8a7c64",
+                    acc=["#b5721d", "#b03a2e", "#3e7a57"], title="Threat-intel icon pack · light"),
+    }
+    for tname, T in THEMES.items():
+        body = ""; k = 0
+        for c in CAT_ORDER:
+            body += f'<div class="sec">{CAT_LABEL[c]} <span>{len(cats[c])}</span></div><div class="g">'
+            for n in cats[c]:
+                svg = WRAP.format(inner=I[n]).replace('width="24" height="24"', 'width="46" height="46"')
+                body += f'<div class="t" style="color:{T["acc"][k % 3]}">{svg}<div class="n">{n}</div></div>'; k += 1
+            body += "</div>"
+        html = f"""<!doctype html><html><head><meta charset="utf-8"><style>
+body{{margin:0;width:1180px;background:{T['bg']};font-family:Inter,-apple-system,system-ui,sans-serif;padding:34px 30px 40px;box-sizing:border-box}}
+h1{{margin:0;color:{T['ink']};font-size:22px;letter-spacing:-.01em}}
+.sub{{color:{T['soft']};font-size:13.5px;margin:5px 0 8px}}
+.sec{{color:{T['soft']};font:600 11.5px/1 Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;margin:24px 0 10px}}
+.sec span{{color:{T['faint']};font-weight:400;margin-left:6px}}
+.g{{display:grid;grid-template-columns:repeat(8,1fr);gap:12px}}
+.t{{background:{T['tile']};border:1px solid {T['line']};border-radius:10px;padding:18px 0 13px;text-align:center}}
+.n{{color:{T['soft']};font:11.5px/1 Menlo,monospace;margin-top:11px}}
+</style></head><body><h1>{T['title']}</h1>
+<div class="sub">{len(manifest)} line icons · 24×24 · currentColor</div>{body}</body></html>"""
+        with open(os.path.join(OUT, f"contact_{tname}.html"), "w") as f:
+            f.write(html)
+
+print(f"wrote {len(manifest)} icons to {OUT}/")
+print(", ".join(sorted(manifest)))

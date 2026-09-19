@@ -1,0 +1,101 @@
+{
+  "delivery-social": [
+    "browser",
+    "mail",
+    "mailbox-rule",
+    "phish-hook",
+    "phone",
+    "qr-code"
+  ],
+  "execution": [
+    "cmd",
+    "code",
+    "compiler",
+    "dll",
+    "encoded-file",
+    "powershell",
+    "run-dialog",
+    "script-file",
+    "terminal"
+  ],
+  "payload-evasion": [
+    "archive",
+    "bug",
+    "eye-off",
+    "image-file",
+    "inject",
+    "sandbox",
+    "shield",
+    "shield-alert",
+    "shield-check",
+    "skull",
+    "stego",
+    "tray-icon",
+    "xor"
+  ],
+  "host-persistence": [
+    "clock-task",
+    "folder",
+    "gear",
+    "keylogger",
+    "registry",
+    "remote-desktop",
+    "shortcut"
+  ],
+  "network-c2": [
+    "beacon",
+    "dns",
+    "download-cloud",
+    "exfil",
+    "finger-net",
+    "globe",
+    "link",
+    "telegram"
+  ],
+  "cloud-devops": [
+    "bucket",
+    "ci-runner",
+    "cloud",
+    "container",
+    "database",
+    "driver",
+    "edge-appliance",
+    "function",
+    "git-branch",
+    "hypervisor",
+    "k8s",
+    "package",
+    "vm"
+  ],
+  "identity-access": [
+    "admin",
+    "certificate",
+    "cookie",
+    "device-enroll",
+    "fingerprint",
+    "id-badge",
+    "idp",
+    "key",
+    "lock",
+    "mfa-push",
+    "password",
+    "saas-app",
+    "service-account",
+    "sign-in",
+    "token",
+    "user",
+    "users",
+    "vault"
+  ],
+  "actors-infra": [
+    "biohazard",
+    "eye",
+    "hacker",
+    "laptop",
+    "laptop-skull",
+    "magnifier",
+    "radiation",
+    "server",
+    "warning"
+  ]
+}
